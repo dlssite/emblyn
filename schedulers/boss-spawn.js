@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const cron = require('node-cron');
-const GuildSettings = require('../models/guild/GuildSettings');
+const { GuildSettings } = require('../models/guild/GuildSettings');
 const { Event } = require('../models/pets/events');
 
 module.exports = (client) => {

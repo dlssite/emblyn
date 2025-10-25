@@ -145,7 +145,9 @@ module.exports = {
                     });
                 }
             } else if (subcommand === 'edit-lore') {
-                if (interaction.replied || interaction.deferred) return;
+                if (interaction.deferred || interaction.replied) {
+                    throw new Error('Cannot show modal after deferring or replying');
+                }
 
                 try {
                     const config = await AiChat.getConfig(guildId);
@@ -155,47 +157,49 @@ module.exports = {
                         .setTitle('Edit AI Lore & Personality');
 
                     const bioInput = new TextInputBuilder()
-                        .setCustomId('bio_input')
-                        .setLabel('AI Bio/Personality')
-                        .setStyle(TextInputStyle.Paragraph)
-                        .setPlaceholder('Describe the AI character\'s personality, background, and behavior...')
-                        .setValue(config?.bio || '')
-                        .setRequired(true)
-                        .setMaxLength(1000);
+                            .setCustomId('bio_input')
+                            .setLabel('AI Bio/Personality')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('Describe the AI character\'s personality, background, and behavior...')
+                            .setValue(config?.bio || '')
+                            .setRequired(true)
+                            .setMaxLength(1000);
 
-                    const loreInput = new TextInputBuilder()
-                        .setCustomId('lore_input')
-                        .setLabel('Server Lore')
-                        .setStyle(TextInputStyle.Paragraph)
-                        .setPlaceholder('Describe the server\'s lore, history, and world-building...')
-                        .setValue(config?.lore || '')
-                        .setRequired(true)
-                        .setMaxLength(2000);
+                        const loreInput = new TextInputBuilder()
+                            .setCustomId('lore_input')
+                            .setLabel('Server Lore')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('Describe the server\'s lore, history, and world-building...')
+                            .setValue(config?.lore || '')
+                            .setRequired(true)
+                            .setMaxLength(2000);
 
-                    const hierarchyInput = new TextInputBuilder()
-                        .setCustomId('hierarchy_input')
-                        .setLabel('Server Hierarchy')
-                        .setStyle(TextInputStyle.Paragraph)
-                        .setPlaceholder('Describe the server roles, ranks, and social structure...')
-                        .setValue(config?.hierarchy || '')
-                        .setRequired(true)
-                        .setMaxLength(1000);
+                        const hierarchyInput = new TextInputBuilder()
+                            .setCustomId('hierarchy_input')
+                            .setLabel('Server Hierarchy')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('Describe the server roles, ranks, and social structure...')
+                            .setValue(config?.hierarchy || '')
+                            .setRequired(true)
+                            .setMaxLength(1000);
 
-                    const firstActionRow = new ActionRowBuilder().addComponents(bioInput);
-                    const secondActionRow = new ActionRowBuilder().addComponents(loreInput);
-                    const thirdActionRow = new ActionRowBuilder().addComponents(hierarchyInput);
+                        const firstActionRow = new ActionRowBuilder().addComponents(bioInput);
+                        const secondActionRow = new ActionRowBuilder().addComponents(loreInput);
+                        const thirdActionRow = new ActionRowBuilder().addComponents(hierarchyInput);
 
-                    modal.addComponents(firstActionRow, secondActionRow, thirdActionRow);
+                        modal.addComponents(firstActionRow, secondActionRow, thirdActionRow);
 
-                    await interaction.showModal(modal);
+                        try {
+                            await interaction.showModal(modal);
+                        } catch (modalError) {
+                            if (modalError.code === 10062) {
+                                // Interaction expired, silently ignore
+                                return;
+                            }
+                            throw modalError;
+                        }
                 } catch (error) {
-                    console.error(`Error showing lore edit modal for guild ${guildId}:`, error);
-                    if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({
-                            content: '❌ There was an error opening the edit form. Please try again later.',
-                            ephemeral: true
-                        });
-                    }
+                    throw error; // Let the main handler deal with errors
                 }
             } else if (subcommand === 'set-apikey') {
                 const apiKey = interaction.options.getString('apikey');

@@ -797,8 +797,8 @@ module.exports = {
             }
 
             if (interaction.customId === 'edit_lore_modal') {
-                await safeDeferReply(interaction);
-
+                await interaction.deferReply({ ephemeral: true });
+                
                 const guildId = interaction.guild.id;
                 const bio = interaction.fields.getTextInputValue('bio_input');
                 const lore = interaction.fields.getTextInputValue('lore_input');
@@ -1358,15 +1358,8 @@ module.exports = {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
 
-            // Defer the reply early for all slash commands to prevent timeouts
-            try {
-                await interaction.deferReply({ ephemeral: true });
-            } catch (err) {
-                // Ignore if already deferred/replied
-                console.debug('Error deferring slash command:', err.message);
-            }
-
             const subcommandName = interaction.options.getSubcommand(false);
+
             const isDisabled = await DisabledCommand.findOne({
                 guildId: interaction.guild.id,
                 commandName: interaction.commandName,
@@ -1374,17 +1367,41 @@ module.exports = {
             });
 
             if (isDisabled) {
-                return interaction.editReply({ content: `❌ This command is disabled in this server.` });
+                return interaction.reply({ content: `❌ This command is disabled in this server.`, flags: [MessageFlags.Ephemeral] });
             }
 
             try {
+                // Check if this is a modal command
+                const isModalCommand = interaction.commandName === 'setup-aichat' && subcommandName === 'edit-lore';
+
+                if (!isModalCommand) {
+                    // Only defer non-modal commands
+                    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+                }
+
                 await command.execute(interaction, client);
             } catch (error) {
-                console.error(error);
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: 'There was an error while executing this command!', flags: [MessageFlags.Ephemeral] });
+                console.error('Command execution error:', error);
+                if (error.code === 'InteractionAlreadyReplied' || error.code === 10062) {
+                    return; // Ignore already replied or expired errors
+                }
+                const errorMessage = { content: 'There was an error while executing this command!', flags: [MessageFlags.Ephemeral] };
+                if (!interaction.deferred && !interaction.replied) {
+                    try {
+                        await interaction.reply(errorMessage);
+                    } catch (e) {
+                        if (e.code !== 10062) {
+                            console.error('Error sending error message:', e);
+                        }
+                    }
                 } else {
-                    await interaction.reply({ content: 'There was an error while executing this command!', flags: [MessageFlags.Ephemeral] });
+                    try {
+                        await interaction.followUp(errorMessage);
+                    } catch (e) {
+                        if (e.code !== 10062) {
+                            console.error('Error sending error message:', e);
+                        }
+                    }
                 }
             }
         }

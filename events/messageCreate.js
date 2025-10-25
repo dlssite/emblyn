@@ -90,8 +90,6 @@ async function getOpenRouterResponse(history, triggeringMessage, mentionedUsersI
 
         const systemPrompt = `${bio}
 
-Always address the user by their name or nickname, ${triggeringMessage.member.displayName}, at the beginning of your responses to personalize the interaction.
-
 **Crucial Interaction Rules:**
 1.  **Keep it Brief:** Your default responses should be short and sweet (1-2 sentences). Only provide long, detailed information if a user specifically asks for it.
 2.  **Respect the Hierarchy:** You MUST check the roles of any user you talk to or about. Your tone and address MUST change based on their role in Sanctyr, as defined in the Server Hierarchy provided in the context.

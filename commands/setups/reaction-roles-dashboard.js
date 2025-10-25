@@ -131,7 +131,7 @@ async function handleCreate(interaction) {
     const embed = new EmbedBuilder()
         .setTitle(title)
         .setDescription(description)
-        .setColor('#6366f1');
+        .setColor('#f5d000ff');
 
     if (banner) {
         try {
@@ -143,10 +143,10 @@ async function handleCreate(interaction) {
         }
     }
 
-    embed.setFooter({
-        text: 'Select roles from the dropdown menu below',
-        iconURL: interaction.guild.iconURL({ dynamic: true })
-    });
+    // embed.setFooter({
+    //     text: 'Select roles from the dropdown menu below',
+    //     iconURL: interaction.guild.iconURL({ dynamic: true })
+    // });
 
     // First, send the message without the menu
     const setupMessage = await channel.send({

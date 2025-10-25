@@ -9,6 +9,70 @@ module.exports = {
         try {
             // Handle button interactions for the dashboard
             if (interaction.isButton()) {
+                if (interaction.customId === 'reaction_role_list') {
+                    const setups = await reactionRolesCollection.find({
+                        serverId: interaction.guild.id
+                    }).toArray();
+
+                    if (setups.length === 0) {
+                        return interaction.reply({
+                            content: '📝 No reaction role setups found in this server.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const options = setups.map(setup => ({
+                        label: `Edit: ${setup.title}`,
+                        value: `edit_${setup.messageId}`,
+                        description: `Edit the "${setup.title}" setup`
+                    }));
+
+                    const menu = new StringSelectMenuBuilder()
+                        .setCustomId('reaction_role_manage_select')
+                        .setPlaceholder('Select a setup to edit')
+                        .addOptions(options);
+
+                    const row = new ActionRowBuilder().addComponents(menu);
+
+                    return interaction.reply({
+                        content: 'Select a reaction role setup to edit:',
+                        components: [row],
+                        ephemeral: true
+                    });
+                }
+
+                if (interaction.customId === 'reaction_role_delete_list') {
+                    const setups = await reactionRolesCollection.find({
+                        serverId: interaction.guild.id
+                    }).toArray();
+
+                    if (setups.length === 0) {
+                        return interaction.reply({
+                            content: '📝 No reaction role setups found in this server.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const options = setups.map(setup => ({
+                        label: `Delete: ${setup.title}`,
+                        value: `delete_${setup.messageId}`,
+                        description: `Delete the "${setup.title}" setup`
+                    }));
+
+                    const menu = new StringSelectMenuBuilder()
+                        .setCustomId('reaction_role_manage_select')
+                        .setPlaceholder('Select a setup to delete')
+                        .addOptions(options);
+
+                    const row = new ActionRowBuilder().addComponents(menu);
+
+                    return interaction.reply({
+                        content: 'Select a reaction role setup to delete:',
+                        components: [row],
+                        ephemeral: true
+                    });
+                }
+
                 if (interaction.customId === 'rr_create') {
                     const embed = new EmbedBuilder()
                         .setTitle('Create Reaction Role Message')
@@ -253,6 +317,46 @@ module.exports = {
 
                     return interaction.showModal(modal);
                 }
+
+                if (interaction.customId.startsWith('confirm_delete_')) {
+                    const messageId = interaction.customId.replace('confirm_delete_', '');
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    try {
+                        // Delete the message
+                        const channel = await interaction.guild.channels.fetch(setup.channelId);
+                        const message = await channel.messages.fetch(messageId);
+                        await message.delete();
+
+                        // Remove from database
+                        await reactionRolesCollection.deleteOne({ messageId });
+
+                        return interaction.reply({
+                            content: `✅ Successfully deleted the "${setup.title}" reaction role setup.`,
+                            ephemeral: true
+                        });
+                    } catch (error) {
+                        console.error('Error deleting setup:', error);
+                        return interaction.reply({
+                            content: '❌ An error occurred while deleting the setup.',
+                            ephemeral: true
+                        });
+                    }
+                }
+
+                if (interaction.customId === 'cancel_delete') {
+                    return interaction.reply({
+                        content: '❌ Deletion cancelled.',
+                        ephemeral: true
+                    });
+                }
             }
 
             // Handle role selection from dropdown menus
@@ -285,6 +389,80 @@ module.exports = {
                 } catch (error) {
                     return interaction.reply({
                         content: '❌ I don\'t have permission to manage that role.',
+                        ephemeral: true
+                    });
+                }
+            }
+
+            // Handle manage select menu (edit/delete selection)
+            if (interaction.isStringSelectMenu() && interaction.customId === 'reaction_role_manage_select') {
+                const value = interaction.values[0];
+                const [action, messageId] = value.split('_');
+
+                if (action === 'edit') {
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const row = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`rr_edit_title_${messageId}`)
+                                .setLabel('Edit Title')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId(`rr_edit_desc_${messageId}`)
+                                .setLabel('Edit Description')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId(`rr_edit_banner_${messageId}`)
+                                .setLabel('Edit Banner')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId(`rr_edit_color_${messageId}`)
+                                .setLabel('Edit Color')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId(`rr_edit_placeholder_${messageId}`)
+                                .setLabel('Edit Placeholder')
+                                .setStyle(ButtonStyle.Secondary)
+                        );
+
+                    return interaction.reply({
+                        content: 'Choose what you want to edit:',
+                        components: [row],
+                        ephemeral: true
+                    });
+                } else if (action === 'delete') {
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const row = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`confirm_delete_${messageId}`)
+                                .setLabel('Confirm Delete')
+                                .setStyle(ButtonStyle.Danger),
+                            new ButtonBuilder()
+                                .setCustomId('cancel_delete')
+                                .setLabel('Cancel')
+                                .setStyle(ButtonStyle.Secondary)
+                        );
+
+                    return interaction.reply({
+                        content: `Are you sure you want to delete the "${setup.title}" reaction role setup? This action cannot be undone.`,
+                        components: [row],
                         ephemeral: true
                     });
                 }

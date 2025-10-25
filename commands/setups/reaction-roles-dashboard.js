@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { ActionRowBuilder, ButtonBuilder, EmbedBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, EmbedBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ButtonStyle, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { reactionRolesCollection } = require('../../mongodb');
 const cmdIcons = require('../../UI/icons/commandicons');
 const checkPermissions = require('../../utils/checkPermissions');
@@ -118,7 +118,7 @@ async function showDashboard(interaction) {
     await interaction.editReply({
         embeds: [embed],
         components: [row],
-        ephemeral: true
+        flags: [MessageFlags.Ephemeral]
     });
 }
 
@@ -197,8 +197,6 @@ async function handleCreate(interaction) {
 }
 
 async function handleAddRole(interaction) {
-    await interaction.deferReply({ ephemeral: true });
-    
     const messageId = interaction.options.getString('messageid');
     const role = interaction.options.getRole('role');
     const label = interaction.options.getString('label');
@@ -273,8 +271,6 @@ async function handleAddRole(interaction) {
 }
 
 async function handleRemoveRole(interaction) {
-    await interaction.deferReply({ ephemeral: true });
-    
     const messageId = interaction.options.getString('messageid');
     const role = interaction.options.getRole('role');
 

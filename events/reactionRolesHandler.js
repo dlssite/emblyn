@@ -27,11 +27,12 @@ module.exports = {
         const id = interaction.customId;
 
         // Defer early for all button interactions unless they show a modal
-        if (!interaction.deferred && !interaction.replied && 
-            !id.startsWith('reaction_role_add_') && 
+        if (!interaction.deferred && !interaction.replied &&
+            !id.startsWith('reaction_role_add_') &&
             !id.startsWith('reaction_role_add_role_') &&
-            !id.startsWith('reaction_role_edit_title_') && 
-            !id.startsWith('reaction_role_edit_desc_')) {
+            !id.startsWith('reaction_role_edit_title_') &&
+            !id.startsWith('reaction_role_edit_desc_') &&
+            !id.startsWith('reaction_role_edit_banner_')) {
           await interaction.deferReply({ ephemeral: true }).catch(() => {});
         }
 
@@ -49,17 +50,46 @@ module.exports = {
           return interaction.showModal(modal).catch(() => {});
         }
 
-        if (id.startsWith('reaction_role_edit_title_') || id.startsWith('reaction_role_edit_desc_')) {
+        if (id.startsWith('reaction_role_edit_title_') || id.startsWith('reaction_role_edit_desc_') || id.startsWith('reaction_role_edit_banner_') || id.startsWith('reaction_role_toggle_desc_')) {
           const messageId = id.split('_').pop();
           if (id.startsWith('reaction_role_edit_title_')) {
             const modal = new ModalBuilder().setCustomId(`reaction_role_edit_title_modal_${messageId}`).setTitle('Edit Reaction Role Title');
             const titleInput = new TextInputBuilder().setCustomId('new_title').setLabel('New Title').setStyle(TextInputStyle.Short).setRequired(true);
             modal.addComponents(new ActionRowBuilder().addComponents(titleInput));
             return interaction.showModal(modal).catch(() => {});
-          } else {
+          } else if (id.startsWith('reaction_role_edit_desc_')) {
             const modal = new ModalBuilder().setCustomId(`reaction_role_edit_desc_modal_${messageId}`).setTitle('Edit Reaction Role Description');
-            const descInput = new TextInputBuilder().setCustomId('new_description').setLabel('New Description').setStyle(TextInputStyle.Paragraph).setRequired(true);
+            const descInput = new TextInputBuilder().setCustomId('new_description').setLabel('New Description (leave empty to remove)').setStyle(TextInputStyle.Paragraph).setRequired(false);
             modal.addComponents(new ActionRowBuilder().addComponents(descInput));
+            return interaction.showModal(modal).catch(() => {});
+          } else if (id.startsWith('reaction_role_toggle_desc_')) {
+            const setup = await reactionRolesCollection.findOne({ messageId });
+            if (!setup) return interaction.editReply({ content: '❌ Reaction role setup not found.' });
+
+            const channel = await interaction.guild.channels.fetch(setup.channelId).catch(() => null);
+            if (channel) {
+              const msg = await channel.messages.fetch(messageId).catch(() => null);
+              if (msg) {
+                const embed = EmbedBuilder.from(msg.embeds[0] || new EmbedBuilder());
+                if (setup.description) {
+                  // Remove description
+                  embed.setDescription(null);
+                  await reactionRolesCollection.updateOne({ messageId }, { $set: { description: null } }).catch(() => {});
+                  await msg.edit({ embeds: [embed] }).catch(() => {});
+                  return interaction.editReply({ content: '✅ Description removed successfully!' });
+                } else {
+                  // Add description - show modal
+                  const modal = new ModalBuilder().setCustomId(`reaction_role_toggle_desc_modal_${messageId}`).setTitle('Add Reaction Role Description');
+                  const descInput = new TextInputBuilder().setCustomId('new_description').setLabel('New Description').setStyle(TextInputStyle.Paragraph).setRequired(true);
+                  modal.addComponents(new ActionRowBuilder().addComponents(descInput));
+                  return interaction.showModal(modal).catch(() => {});
+                }
+              }
+            }
+          } else if (id.startsWith('reaction_role_edit_banner_')) {
+            const modal = new ModalBuilder().setCustomId(`reaction_role_edit_banner_modal_${messageId}`).setTitle('Edit Reaction Role Banner');
+            const bannerInput = new TextInputBuilder().setCustomId('new_banner').setLabel('New Banner URL (leave empty to remove)').setPlaceholder('https://example.com/image.png').setStyle(TextInputStyle.Short).setRequired(false);
+            modal.addComponents(new ActionRowBuilder().addComponents(bannerInput));
             return interaction.showModal(modal).catch(() => {});
           }
         }
@@ -81,8 +111,8 @@ module.exports = {
         }
 
         if (id === 'reaction_role_view') {
-          const setups = await reactionRolesCollection.find({ serverId: interaction.guild.id }).toArray();
-          if (!setups || setups.length === 0) return interaction.editReply({ content: '📝 No reaction role setups found in this server.' });
+          const setups = await reactionRolesCollection.find({ serverId: interaction.guild.id, channelId: interaction.channel.id }).toArray();
+          if (!setups || setups.length === 0) return interaction.editReply({ content: '📝 No reaction role setups found in this channel.' });
 
           const embeds = setups.map(s => {
             const e = new EmbedBuilder()
@@ -104,8 +134,8 @@ module.exports = {
 
         // List (edit) and delete flows - present buttons to choose a setup
         if (id === 'reaction_role_list' || id === 'reaction_role_delete_list') {
-          const setups = await reactionRolesCollection.find({ serverId: interaction.guild.id }).toArray();
-          if (!setups || setups.length === 0) return interaction.editReply({ content: '❌ No reaction role setups found in this server.' });
+          const setups = await reactionRolesCollection.find({ serverId: interaction.guild.id, channelId: interaction.channel.id }).toArray();
+          if (!setups || setups.length === 0) return interaction.editReply({ content: '❌ No reaction role setups found in this channel.' });
 
           const rows = setups.slice(0, 5).map(s => new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -125,7 +155,8 @@ module.exports = {
 
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`reaction_role_edit_title_${messageId}`).setLabel('Edit Title').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId(`reaction_role_edit_desc_${messageId}`).setLabel('Edit Description').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`reaction_role_toggle_desc_${messageId}`).setLabel('Toggle Description').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`reaction_role_edit_banner_${messageId}`).setLabel('Edit Banner').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId(`reaction_role_add_role_${messageId}`).setLabel('Add Role').setStyle(ButtonStyle.Primary),
             new ButtonBuilder().setCustomId(`reaction_role_remove_role_${messageId}`).setLabel('Remove Role').setStyle(ButtonStyle.Danger)
           );
@@ -316,6 +347,51 @@ module.exports = {
 
           await reactionRolesCollection.updateOne({ messageId }, { $set: { description: newDesc } }).catch(() => {});
           return interaction.editReply({ content: '✅ Description updated successfully!' });
+        }
+
+        // Edit banner modal
+        if (id.startsWith('reaction_role_edit_banner_modal_')) {
+          const messageId = id.replace('reaction_role_edit_banner_modal_', '');
+          const newBanner = interaction.fields.getTextInputValue('new_banner') || null;
+          const setup = await reactionRolesCollection.findOne({ messageId });
+          if (!setup) return interaction.editReply({ content: '❌ Reaction role setup not found.' });
+
+          const channel = await interaction.guild.channels.fetch(setup.channelId).catch(() => null);
+          if (channel) {
+            const msg = await channel.messages.fetch(messageId).catch(() => null);
+            if (msg) {
+              const embed = EmbedBuilder.from(msg.embeds[0] || new EmbedBuilder());
+              if (newBanner) {
+                embed.setImage(newBanner);
+              } else {
+                embed.setImage(null);
+              }
+              await msg.edit({ embeds: [embed] }).catch(() => {});
+            }
+          }
+
+          await reactionRolesCollection.updateOne({ messageId }, { $set: { banner: newBanner } }).catch(() => {});
+          return interaction.editReply({ content: newBanner ? '✅ Banner updated successfully!' : '✅ Banner removed successfully!' });
+        }
+
+        // Toggle description modal (add description)
+        if (id.startsWith('reaction_role_toggle_desc_modal_')) {
+          const messageId = id.replace('reaction_role_toggle_desc_modal_', '');
+          const newDesc = interaction.fields.getTextInputValue('new_description');
+          const setup = await reactionRolesCollection.findOne({ messageId });
+          if (!setup) return interaction.editReply({ content: '❌ Reaction role setup not found.' });
+
+          const channel = await interaction.guild.channels.fetch(setup.channelId).catch(() => null);
+          if (channel) {
+            const msg = await channel.messages.fetch(messageId).catch(() => null);
+            if (msg) {
+              const embed = EmbedBuilder.from(msg.embeds[0] || new EmbedBuilder()).setDescription(newDesc);
+              await msg.edit({ embeds: [embed] }).catch(() => {});
+            }
+          }
+
+          await reactionRolesCollection.updateOne({ messageId }, { $set: { description: newDesc } }).catch(() => {});
+          return interaction.editReply({ content: '✅ Description added successfully!' });
         }
       }
 

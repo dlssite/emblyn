@@ -25,8 +25,8 @@ module.exports = {
                             .setRequired(true))
                     .addStringOption(option =>
                         option.setName('description')
-                            .setDescription('The description for the reaction roles')
-                            .setRequired(true))
+                            .setDescription('The description for the reaction roles (optional)')
+                            .setRequired(false))
                     .addStringOption(option =>
                         option.setName('banner')
                             .setDescription('URL of the banner image (optional)')
@@ -130,12 +130,15 @@ async function handleCreate(interaction) {
 
     const embed = new EmbedBuilder()
         .setTitle(title)
-        .setDescription(description)
-        .setColor('#f5d000ff');
+        .setColor('#f59f00');
+
+    if (description) {
+        embed.setDescription(description);
+    }
 
     if (banner) {
         try {
-            embed.setImage(banner);
+            embed.setImage(banner);s
         } catch (error) {
             return interaction.editReply({
                 content: '❌ Invalid banner URL provided.'

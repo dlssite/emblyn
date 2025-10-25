@@ -228,7 +228,7 @@ module.exports = {
                     if (otherMentionedMembers.size > 0) {
                         mentionedUsersInfo = otherMentionedMembers.map(member => {
                             const roles = member.roles.cache.map(role => role.name).join(', ') || 'No specific roles';
-                            return `${member.user.username} (Roles: ${roles})`;
+                            return `${member.displayName} (Roles: ${roles})`;
                         }).join('\n');
                     }
                 }
@@ -237,7 +237,8 @@ module.exports = {
                 
                 const conversationHistory = fetchedMessages.reverse().map(msg => {
                     const role = msg.author.id === client.user.id ? 'assistant' : 'user';
-                    const text = role === 'assistant' ? msg.content : `${msg.author.username}: ${msg.content}`;
+                    const displayName = msg.member ? msg.member.displayName : msg.author.username;
+                    const text = role === 'assistant' ? msg.content : `${displayName}: ${msg.content}`;
                     return { role, parts: [{ text }] };
                 });
 

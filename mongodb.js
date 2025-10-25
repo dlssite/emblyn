@@ -8,7 +8,7 @@ const colors = require('./UI/colors/colors');
 // Correctly read from config.json
 const configPath = path.join(__dirname, 'config.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-const uri = config.mongodbUri;
+const uri = process.env.MONGODB_URI || config.mongodbUri;
 
 const client = new MongoClient(uri);
 

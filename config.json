@@ -2,7 +2,7 @@
     "token": "",
     "language": "en",
     "prefix": "!",
-    "mongodbUri": "mongodb+srv://Discord:DiscordBot@cluster0.trdrg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    "mongodbUri": "",
     "excessCommands": {
         "utility": true,
         "other": true,

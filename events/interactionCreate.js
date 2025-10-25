@@ -16,6 +16,28 @@ const EventConfig = require('../models/events/eventConfig');
 const AiChat = require('../models/aichat/aiModel');
 const embersMessages = new Map();
 
+// Helpers to avoid double-acknowledging interactions
+async function safeDeferUpdate(interaction) {
+    try {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferUpdate();
+        }
+    } catch (err) {
+        // log at debug level; ignore already-acknowledged errors
+        // console.debug('safeDeferUpdate skipped:', err.message);
+    }
+}
+
+async function safeDeferReply(interaction) {
+    try {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        }
+    } catch (err) {
+        // console.debug('safeDeferReply skipped:', err.message);
+    }
+}
+
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
@@ -41,7 +63,7 @@ module.exports = {
                 await interaction.showModal(modal);
             }
             if (customId.startsWith('tod_')) {
-                await interaction.deferUpdate();
+                await safeDeferUpdate(interaction);
 
                 let result;
                 if (customId === 'tod_truth') {
@@ -66,7 +88,7 @@ module.exports = {
                 if (!interaction.channel.nsfw) {
                     return interaction.reply({ content: 'This command can only be used in NSFW channels.', flags: [MessageFlags.Ephemeral] });
                 }
-                await interaction.deferUpdate();
+                await safeDeferUpdate(interaction);
 
                 let result;
                 if (customId === 'nsfw_tod_truth') {
@@ -111,7 +133,7 @@ module.exports = {
                 }
             }
             if (customId === 'invest_list') {
-                await interaction.deferUpdate();
+                await safeDeferUpdate(interaction);
                 const { stocks, updateStockPrices } = require('../data/stocks');
                 updateStockPrices();
                 const embed = new EmbedBuilder()
@@ -126,7 +148,7 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed] });
             }
             if (customId === 'invest_view') {
-                await interaction.deferUpdate();
+                await safeDeferUpdate(interaction);
                 const { getEconomyProfile } = require('../models/economy');
                 const { stocks } = require('../data/stocks');
                 const userId = interaction.user.id;
@@ -156,7 +178,7 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed] });
             }
             if (customId === 'invest_buy') {
-                await interaction.deferUpdate();
+                await safeDeferUpdate(interaction);
                 const { stocks, updateStockPrices } = require('../data/stocks');
                 updateStockPrices();
                 const embed = new EmbedBuilder()
@@ -180,7 +202,7 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed], components: [row] });
             }
             if (customId === 'invest_sell') {
-                await interaction.deferUpdate();
+                await safeDeferUpdate(interaction);
                 const { getEconomyProfile } = require('../models/economy');
                 const { stocks } = require('../data/stocks');
                 const userId = interaction.user.id;
@@ -288,7 +310,7 @@ module.exports = {
                 await interaction.showModal(modal);
             }
             if (customId === 'bank_update') {
-                await interaction.deferUpdate();
+                await safeDeferUpdate(interaction);
                 const userId = interaction.user.id;
                 const profile = await require('../models/economy').getEconomyProfile(userId);
 
@@ -445,13 +467,9 @@ module.exports = {
                 const commandName = selectedValue.replace('embers_', '');
                 const userId = interaction.user.id;
 
-                // Delete the previous embers command response if it exists
+                // Keep the previous embers command response (do not delete it) to avoid timing issues with modals.
+                // Only clear our local reference so we don't attempt to delete it later.
                 if (embersMessages.has(userId)) {
-                    try {
-                        await embersMessages.get(userId).delete();
-                    } catch (error) {
-                        console.error('Error deleting previous embers message:', error);
-                    }
                     embersMessages.delete(userId);
                 }
 
@@ -471,7 +489,16 @@ module.exports = {
                     const row = new ActionRowBuilder().addComponents(targetInput);
                     modal.addComponents(row);
 
-                    await interaction.showModal(modal);
+                    try {
+                        if (!interaction.deferred && !interaction.replied) {
+                            await interaction.showModal(modal);
+                        } else {
+                            await interaction.followUp({ content: 'Could not open the modal because this interaction was already acknowledged. Please try again.', flags: [MessageFlags.Ephemeral] });
+                        }
+                    } catch (err) {
+                        console.error('Error showing modal (rob):', err);
+                        try { await interaction.followUp({ content: 'Could not open the modal. The interaction may have expired — please try again.', flags: [MessageFlags.Ephemeral] }); } catch (e) {}
+                    }
                 } else if (commandName === 'slots') {
                     const modal = new ModalBuilder()
                         .setCustomId('embers_slots_modal')
@@ -487,7 +514,16 @@ module.exports = {
                     const row = new ActionRowBuilder().addComponents(betInput);
                     modal.addComponents(row);
 
-                    await interaction.showModal(modal);
+                    try {
+                        if (!interaction.deferred && !interaction.replied) {
+                            await interaction.showModal(modal);
+                        } else {
+                            await interaction.followUp({ content: 'Could not open the modal because this interaction was already acknowledged. Please try again.', flags: [MessageFlags.Ephemeral] });
+                        }
+                    } catch (err) {
+                        console.error('Error showing modal (slots):', err);
+                        try { await interaction.followUp({ content: 'Could not open the modal. The interaction may have expired — please try again.', flags: [MessageFlags.Ephemeral] }); } catch (e) {}
+                    }
                 } else if (commandName === 'gamble') {
                     const modal = new ModalBuilder()
                         .setCustomId('embers_gamble_modal')
@@ -503,7 +539,18 @@ module.exports = {
                     const row = new ActionRowBuilder().addComponents(amountInput);
                     modal.addComponents(row);
 
-                    await interaction.showModal(modal);
+                    try {
+                        console.log('[debug] gamble: attempting showModal', { interactionId: interaction.id, userId: interaction.user?.id, deferred: interaction.deferred, replied: interaction.replied, messageId: interaction.message?.id });
+                        if (!interaction.deferred && !interaction.replied) {
+                            await interaction.showModal(modal);
+                        } else {
+                            console.log('[debug] gamble: interaction already acknowledged, sending fallback');
+                            await interaction.followUp({ content: 'Could not open the modal because this interaction was already acknowledged. Please try again.', flags: [MessageFlags.Ephemeral] });
+                        }
+                    } catch (err) {
+                        console.error('Error showing modal (gamble):', err);
+                        try { await interaction.followUp({ content: 'Could not open the modal. The interaction may have expired — please try again.', flags: [MessageFlags.Ephemeral] }); } catch (e) {}
+                    }
                 } else if (commandName === 'roulette') {
                     const modal = new ModalBuilder()
                         .setCustomId('embers_roulette_modal')
@@ -527,10 +574,19 @@ module.exports = {
                     const row2 = new ActionRowBuilder().addComponents(colorInput);
                     modal.addComponents(row1, row2);
 
-                    await interaction.showModal(modal);
+                    try {
+                        if (!interaction.deferred && !interaction.replied) {
+                            await interaction.showModal(modal);
+                        } else {
+                            await interaction.followUp({ content: 'Could not open the modal because this interaction was already acknowledged. Please try again.', flags: [MessageFlags.Ephemeral] });
+                        }
+                    } catch (err) {
+                        console.error('Error showing modal (roulette):', err);
+                        try { await interaction.followUp({ content: 'Could not open the modal. The interaction may have expired — please try again.', flags: [MessageFlags.Ephemeral] }); } catch (e) {}
+                    }
                 } else {
                     // For other commands, use the old method
-                    await interaction.deferUpdate();
+                        await safeDeferUpdate(interaction);
                     const mockMessage = {
                         author: interaction.user,
                         channel: interaction.channel,
@@ -556,7 +612,7 @@ module.exports = {
                         await command.execute(mockMessage, []);
                     } catch (error) {
                         console.error(`Error executing command ${commandName}:`, error);
-                        const errorMessage = await interaction.followUp({ content: `An error occurred while running the ${commandName} command.`, ephemeral: true });
+                        const errorMessage = await interaction.followUp({ content: `An error occurred while running the ${commandName} command.`, flags: [MessageFlags.Ephemeral] });
                         embersMessages.set(userId, errorMessage);
                     }
                 }
@@ -653,12 +709,12 @@ module.exports = {
             if (interaction.customId === 'partner_modal') {
                 const config = await PartnerConfig.findOne({ guildId: interaction.guild.id });
                 if (!config) {
-                    return interaction.reply({ content: 'The partnership system has not been configured yet. Use `/setup-partner set` to set a channel first.', ephemeral: true });
+                    return interaction.reply({ content: 'The partnership system has not been configured yet. Use `/setup-partner set` to set a channel first.', flags: [MessageFlags.Ephemeral] });
                 }
                 
                 const channel = await client.channels.fetch(config.channelId);
                 if (!channel) {
-                    return interaction.reply({ content: 'The configured partner channel could not be found.', ephemeral: true });
+                    return interaction.reply({ content: 'The configured partner channel could not be found.', flags: [MessageFlags.Ephemeral] });
                 }
 
                 const serverName = interaction.fields.getTextInputValue('partner_server_name');
@@ -684,22 +740,22 @@ module.exports = {
 
                 try {
                     await channel.send({ embeds: [embed] });
-                    await interaction.reply({ content: `✅ Partner embed has been successfully sent to <#${channel.id}>!`, ephemeral: true });
+                    await interaction.reply({ content: `✅ Partner embed has been successfully sent to <#${channel.id}>!`, flags: [MessageFlags.Ephemeral] });
                 } catch (error) {
                     console.error('Error sending partner embed:', error);
-                    await interaction.reply({ content: 'There was an error sending the partner embed. Please check my permissions in that channel.', ephemeral: true });
+                    await interaction.reply({ content: 'There was an error sending the partner embed. Please check my permissions in that channel.', flags: [MessageFlags.Ephemeral] });
                 }
             }
 
             if (interaction.customId === 'event_modal') {
                 const config = await EventConfig.findOne({ guildId: interaction.guild.id });
                 if (!config) {
-                    return interaction.reply({ content: 'The event system has not been configured yet. Use `/setup-event set` to set a channel first.', ephemeral: true });
+                    return interaction.reply({ content: 'The event system has not been configured yet. Use `/setup-event set` to set a channel first.', flags: [MessageFlags.Ephemeral] });
                 }
 
                 const channel = await client.channels.fetch(config.channelId);
                 if (!channel) {
-                    return interaction.reply({ content: 'The configured event channel could not be found.', ephemeral: true });
+                    return interaction.reply({ content: 'The configured event channel could not be found.', flags: [MessageFlags.Ephemeral] });
                 }
 
                 const title = interaction.fields.getTextInputValue('event_title');
@@ -733,15 +789,15 @@ module.exports = {
 
                 try {
                     await channel.send({ embeds: [embed], components });
-                    await interaction.reply({ content: `✅ Event announcement has been successfully sent to <#${channel.id}>!`, ephemeral: true });
+                    await interaction.reply({ content: `✅ Event announcement has been successfully sent to <#${channel.id}>!`, flags: [MessageFlags.Ephemeral] });
                 } catch (error) {
                     console.error('Error sending event embed:', error);
-                    await interaction.reply({ content: 'There was an an error sending the event announcement. Please check my permissions in that channel.', ephemeral: true });
+                    await interaction.reply({ content: 'There was an an error sending the event announcement. Please check my permissions in that channel.', flags: [MessageFlags.Ephemeral] });
                 }
             }
 
             if (interaction.customId === 'edit_lore_modal') {
-                await interaction.deferReply({ ephemeral: true });
+                await safeDeferReply(interaction);
 
                 const guildId = interaction.guild.id;
                 const bio = interaction.fields.getTextInputValue('bio_input');
@@ -981,7 +1037,7 @@ module.exports = {
             }
 
             if (interaction.customId === 'bank_buy_gold_modal') {
-                await interaction.deferReply({ ephemeral: true });
+                await safeDeferReply(interaction);
 
                 const amountStr = interaction.fields.getTextInputValue('amount');
                 const amount = parseInt(amountStr);
@@ -1160,7 +1216,7 @@ module.exports = {
             }
 
             if (interaction.customId === 'embers_rob_modal') {
-                await interaction.deferReply({ ephemeral: true });
+                await safeDeferReply(interaction);
                 const targetStr = interaction.fields.getTextInputValue('target');
                 const userId = interaction.user.id;
 
@@ -1202,7 +1258,7 @@ module.exports = {
             }
 
             if (interaction.customId === 'embers_slots_modal') {
-                await interaction.deferReply({ ephemeral: true });
+                await safeDeferReply(interaction);
                 const betStr = interaction.fields.getTextInputValue('bet');
                 const bet = parseInt(betStr);
                 const userId = interaction.user.id;
@@ -1234,7 +1290,7 @@ module.exports = {
             }
 
             if (interaction.customId === 'embers_gamble_modal') {
-                await interaction.deferReply({ ephemeral: true });
+                await safeDeferReply(interaction);
                 const amountStr = interaction.fields.getTextInputValue('amount');
                 const userId = interaction.user.id;
 
@@ -1261,7 +1317,7 @@ module.exports = {
             }
 
             if (interaction.customId === 'embers_roulette_modal') {
-                await interaction.deferReply({ ephemeral: true });
+                await safeDeferReply(interaction);
                 const betStr = interaction.fields.getTextInputValue('bet');
                 const color = interaction.fields.getTextInputValue('color').toLowerCase();
                 const bet = parseInt(betStr);

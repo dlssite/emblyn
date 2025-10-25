@@ -22,7 +22,7 @@ Test Passed    : ✓
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
 const cmdIcons = require('../../UI/icons/commandicons');
-const apiKey = 'AIzaSyBuif-wNw_Eov5TESRW15qEsn3buSdrxqc'; 
+const apiKey = process.env.GOOGLE_API_KEY;
 
 async function translateText(text, targetLanguage) {
     const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;

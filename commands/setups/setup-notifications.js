@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 const { SlashCommandBuilder, PermissionsBitField, EmbedBuilder } = require('discord.js');
 const { notificationsCollection } = require('../../mongodb');
 const cmdIcons = require('../../UI/icons/commandicons');
@@ -235,4 +235,4 @@ module.exports = {
     },
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

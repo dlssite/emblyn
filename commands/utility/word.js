@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
@@ -166,4 +166,4 @@ module.exports = {
     },
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

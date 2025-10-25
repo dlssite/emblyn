@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fortniteApiKey = process.env.FORTNITE_API_KEY;
@@ -150,4 +150,4 @@ module.exports = {
     }
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

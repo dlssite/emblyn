@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
 const afkHandler = require('../../events/afkHandler');
@@ -137,4 +137,4 @@ module.exports = {
     }
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

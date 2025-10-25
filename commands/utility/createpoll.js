@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { CommandInteraction, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
@@ -103,4 +103,4 @@ module.exports = {
     },
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

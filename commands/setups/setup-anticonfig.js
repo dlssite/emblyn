@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
 const { anticonfigcollection } = require('../../mongodb');
@@ -95,4 +95,4 @@ module.exports = {
         }  
     },
 };
-/* Emberlyn AI *//
+/* Emberlyn AI */

@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('@discordjs/builders');
 const lang = require('../../events/loadLanguage');
@@ -47,4 +47,4 @@ module.exports = {
     },
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

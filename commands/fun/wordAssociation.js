@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 
 const { SlashCommandBuilder, EmbedBuilder, ChannelType, PermissionsBitField } = require('discord.js');
@@ -293,4 +293,4 @@ function isRelated(word1, word2) {
     return word1.length === word2.length; 
 }
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 
 const checkPermissions = require('../../utils/checkPermissions');
@@ -136,4 +136,4 @@ module.exports = {
   },
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

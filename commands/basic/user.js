@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 
 const cmdIcons = require('../../UI/icons/commandicons');
@@ -132,4 +132,4 @@ module.exports = {
 };
 
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const cmdIcons = require('../../UI/icons/commandicons');
@@ -126,4 +126,4 @@ module.exports = {
     
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

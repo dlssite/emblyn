@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 
 
@@ -181,5 +181,5 @@ module.exports = {
     }
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */
 

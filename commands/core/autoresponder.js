@@ -1,4 +1,4 @@
-/* Emberlyn AI *//
+/* Emberlyn AI */
 
 const { 
     SlashCommandBuilder, 
@@ -187,4 +187,4 @@ module.exports = {
     }
 };
 
-/* Emberlyn AI *//
+/* Emberlyn AI */

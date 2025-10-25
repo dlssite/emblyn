@@ -157,10 +157,10 @@ module.exports = {
 
         // List (edit) and delete flows - present dropdown menu to choose a setup
         if (id === 'reaction_role_list' || id === 'reaction_role_delete_list') {
-          const setups = await reactionRolesCollection.find({ serverId: interaction.guild.id }).toArray();
-          if (!setups || setups.length === 0) return interaction.editReply({ content: '❌ No reaction role setups found in this server.' });
+          const setups = await reactionRolesCollection.find({ serverId: interaction.guild.id, channelId: interaction.channel.id }).toArray();
+          if (!setups || setups.length === 0) return interaction.editReply({ content: '❌ No reaction role setups found in this channel.' });
 
-          const options = setups.map(setup => ({
+          const options = setups.slice(0, 25).map(setup => ({
             label: setup.title || 'Untitled Setup',
             value: (id === 'reaction_role_list' ? `edit_${setup.messageId}` : `delete_${setup.messageId}`),
             description: `Message ID: ${setup.messageId}`

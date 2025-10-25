@@ -32,7 +32,10 @@ module.exports = {
             !id.startsWith('reaction_role_add_role_') &&
             !id.startsWith('reaction_role_edit_title_') &&
             !id.startsWith('reaction_role_edit_desc_') &&
-            !id.startsWith('reaction_role_edit_banner_')) {
+            !id.startsWith('reaction_role_edit_banner_') &&
+            !id.startsWith('reaction_role_edit_color_') &&
+            !id.startsWith('reaction_role_edit_placeholder_') &&
+            !id.startsWith('reaction_role_toggle_desc_')) {
           await interaction.deferReply({ ephemeral: true }).catch(() => {});
         }
 
@@ -50,7 +53,7 @@ module.exports = {
           return interaction.showModal(modal).catch(() => {});
         }
 
-        if (id.startsWith('reaction_role_edit_title_') || id.startsWith('reaction_role_edit_desc_') || id.startsWith('reaction_role_edit_banner_') || id.startsWith('reaction_role_toggle_desc_')) {
+        if (id.startsWith('reaction_role_edit_title_') || id.startsWith('reaction_role_edit_desc_') || id.startsWith('reaction_role_edit_banner_') || id.startsWith('reaction_role_toggle_desc_') || id.startsWith('reaction_role_edit_color_') || id.startsWith('reaction_role_edit_placeholder_')) {
           const messageId = id.split('_').pop();
           if (id.startsWith('reaction_role_edit_title_')) {
             const modal = new ModalBuilder().setCustomId(`reaction_role_edit_title_modal_${messageId}`).setTitle('Edit Reaction Role Title');
@@ -64,32 +67,52 @@ module.exports = {
             return interaction.showModal(modal).catch(() => {});
           } else if (id.startsWith('reaction_role_toggle_desc_')) {
             const setup = await reactionRolesCollection.findOne({ messageId });
-            if (!setup) return interaction.editReply({ content: '❌ Reaction role setup not found.' });
+            if (!setup) {
+              await interaction.deferReply({ ephemeral: true }).catch(() => {});
+              return interaction.editReply({ content: '❌ Reaction role setup not found.' });
+            }
 
             const channel = await interaction.guild.channels.fetch(setup.channelId).catch(() => null);
-            if (channel) {
-              const msg = await channel.messages.fetch(messageId).catch(() => null);
-              if (msg) {
-                const embed = EmbedBuilder.from(msg.embeds[0] || new EmbedBuilder());
-                if (setup.description) {
-                  // Remove description
-                  embed.setDescription(null);
-                  await reactionRolesCollection.updateOne({ messageId }, { $set: { description: null } }).catch(() => {});
-                  await msg.edit({ embeds: [embed] }).catch(() => {});
-                  return interaction.editReply({ content: '✅ Description removed successfully!' });
-                } else {
-                  // Add description - show modal
-                  const modal = new ModalBuilder().setCustomId(`reaction_role_toggle_desc_modal_${messageId}`).setTitle('Add Reaction Role Description');
-                  const descInput = new TextInputBuilder().setCustomId('new_description').setLabel('New Description').setStyle(TextInputStyle.Paragraph).setRequired(true);
-                  modal.addComponents(new ActionRowBuilder().addComponents(descInput));
-                  return interaction.showModal(modal).catch(() => {});
-                }
-              }
+            if (!channel) {
+              await interaction.deferReply({ ephemeral: true }).catch(() => {});
+              return interaction.editReply({ content: '❌ Could not access the channel.' });
+            }
+
+            const msg = await channel.messages.fetch(messageId).catch(() => null);
+            if (!msg) {
+              await interaction.deferReply({ ephemeral: true }).catch(() => {});
+              return interaction.editReply({ content: '❌ Could not access the message.' });
+            }
+
+            const embed = EmbedBuilder.from(msg.embeds[0] || new EmbedBuilder());
+            if (setup.description) {
+              // Remove description
+              await interaction.deferReply({ ephemeral: true }).catch(() => {});
+              embed.setDescription(null);
+              await reactionRolesCollection.updateOne({ messageId }, { $set: { description: null } }).catch(() => {});
+              await msg.edit({ embeds: [embed] }).catch(() => {});
+              return interaction.editReply({ content: '✅ Description removed successfully!' });
+            } else {
+              // Add description - show modal
+              const modal = new ModalBuilder().setCustomId(`reaction_role_toggle_desc_modal_${messageId}`).setTitle('Add Reaction Role Description');
+              const descInput = new TextInputBuilder().setCustomId('new_description').setLabel('New Description').setStyle(TextInputStyle.Paragraph).setRequired(true);
+              modal.addComponents(new ActionRowBuilder().addComponents(descInput));
+              return interaction.showModal(modal).catch(() => {});
             }
           } else if (id.startsWith('reaction_role_edit_banner_')) {
             const modal = new ModalBuilder().setCustomId(`reaction_role_edit_banner_modal_${messageId}`).setTitle('Edit Reaction Role Banner');
             const bannerInput = new TextInputBuilder().setCustomId('new_banner').setLabel('New Banner URL (leave empty to remove)').setPlaceholder('https://example.com/image.png').setStyle(TextInputStyle.Short).setRequired(false);
             modal.addComponents(new ActionRowBuilder().addComponents(bannerInput));
+            return interaction.showModal(modal).catch(() => {});
+          } else if (id.startsWith('reaction_role_edit_color_')) {
+            const modal = new ModalBuilder().setCustomId(`reaction_role_edit_color_modal_${messageId}`).setTitle('Edit Reaction Role Color');
+            const colorInput = new TextInputBuilder().setCustomId('new_color').setLabel('New Color (Hex Code)').setPlaceholder('Enter hex color code (e.g., #ff0000)').setStyle(TextInputStyle.Short).setRequired(true);
+            modal.addComponents(new ActionRowBuilder().addComponents(colorInput));
+            return interaction.showModal(modal).catch(() => {});
+          } else if (id.startsWith('reaction_role_edit_placeholder_')) {
+            const modal = new ModalBuilder().setCustomId(`reaction_role_edit_placeholder_modal_${messageId}`).setTitle('Edit Reaction Role Placeholder');
+            const placeholderInput = new TextInputBuilder().setCustomId('new_placeholder').setLabel('New Placeholder Text').setPlaceholder('Enter the new placeholder text').setStyle(TextInputStyle.Short).setRequired(true);
+            modal.addComponents(new ActionRowBuilder().addComponents(placeholderInput));
             return interaction.showModal(modal).catch(() => {});
           }
         }
@@ -157,8 +180,8 @@ module.exports = {
             new ButtonBuilder().setCustomId(`reaction_role_edit_title_${messageId}`).setLabel('Edit Title').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId(`reaction_role_toggle_desc_${messageId}`).setLabel('Toggle Description').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId(`reaction_role_edit_banner_${messageId}`).setLabel('Edit Banner').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId(`reaction_role_add_role_${messageId}`).setLabel('Add Role').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`reaction_role_remove_role_${messageId}`).setLabel('Remove Role').setStyle(ButtonStyle.Danger)
+            new ButtonBuilder().setCustomId(`reaction_role_edit_color_${messageId}`).setLabel('Edit Color').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`reaction_role_edit_placeholder_${messageId}`).setLabel('Edit Placeholder').setStyle(ButtonStyle.Secondary)
           );
 
           return interaction.editReply({ content: 'Choose what you want to edit:', components: [row] });
@@ -372,6 +395,65 @@ module.exports = {
 
           await reactionRolesCollection.updateOne({ messageId }, { $set: { banner: newBanner } }).catch(() => {});
           return interaction.editReply({ content: newBanner ? '✅ Banner updated successfully!' : '✅ Banner removed successfully!' });
+        }
+
+        // Edit color modal
+        if (id.startsWith('reaction_role_edit_color_modal_')) {
+          const messageId = id.replace('reaction_role_edit_color_modal_', '');
+          const newColor = interaction.fields.getTextInputValue('new_color');
+          const setup = await reactionRolesCollection.findOne({ messageId });
+          if (!setup) return interaction.editReply({ content: '❌ Reaction role setup not found.' });
+
+          const channel = await interaction.guild.channels.fetch(setup.channelId).catch(() => null);
+          if (channel) {
+            const msg = await channel.messages.fetch(messageId).catch(() => null);
+            if (msg) {
+              const embed = EmbedBuilder.from(msg.embeds[0] || new EmbedBuilder()).setColor(newColor);
+              await msg.edit({ embeds: [embed] }).catch(() => {});
+            }
+          }
+
+          await reactionRolesCollection.updateOne({ messageId }, { $set: { color: newColor } }).catch(() => {});
+          return interaction.editReply({ content: '✅ Color updated successfully!' });
+        }
+
+        // Edit placeholder modal
+        if (id.startsWith('reaction_role_edit_placeholder_modal_')) {
+          const messageId = id.replace('reaction_role_edit_placeholder_modal_', '');
+          const newPlaceholder = interaction.fields.getTextInputValue('new_placeholder');
+          const setup = await reactionRolesCollection.findOne({ messageId });
+          if (!setup) return interaction.editReply({ content: '❌ Reaction role setup not found.' });
+
+          await reactionRolesCollection.updateOne({ messageId }, { $set: { placeholder: newPlaceholder } }).catch(() => {});
+
+          // Update the select menu if it exists
+          const updatedSetup = await reactionRolesCollection.findOne({ messageId });
+          if (updatedSetup.roles.length > 0) {
+            const channel = await interaction.guild.channels.fetch(updatedSetup.channelId).catch(() => null);
+            if (channel) {
+              const msg = await channel.messages.fetch(messageId).catch(() => null);
+              if (msg && msg.components.length > 0) {
+                const options = updatedSetup.roles.map(r => ({
+                  label: r.label,
+                  value: r.id,
+                  description: `Toggle the ${r.name} role`,
+                  emoji: r.emoji
+                }));
+
+                const menu = new StringSelectMenuBuilder()
+                  .setCustomId(`reaction_role_select_${messageId}`)
+                  .setPlaceholder(newPlaceholder)
+                  .setMinValues(1)
+                  .setMaxValues(1)
+                  .addOptions(options);
+
+                const row = new ActionRowBuilder().addComponents(menu);
+                await msg.edit({ components: [row] }).catch(() => {});
+              }
+            }
+          }
+
+          return interaction.editReply({ content: '✅ Placeholder updated successfully!' });
         }
 
         // Toggle description modal (add description)

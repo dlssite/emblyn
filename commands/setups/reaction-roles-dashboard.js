@@ -30,6 +30,14 @@ module.exports = {
                     .addStringOption(option =>
                         option.setName('banner')
                             .setDescription('URL of the banner image (optional)')
+                            .setRequired(false))
+                    .addStringOption(option =>
+                        option.setName('color')
+                            .setDescription('Hex color code for the embed (default: #f59f00)')
+                            .setRequired(false))
+                    .addStringOption(option =>
+                        option.setName('placeholder')
+                            .setDescription('Placeholder text for the dropdown menu (default: "Select a role to toggle")')
                             .setRequired(false)))
             .addSubcommand(sub =>
                 sub.setName('addrole')
@@ -127,10 +135,12 @@ async function handleCreate(interaction) {
     const title = interaction.options.getString('title');
     const description = interaction.options.getString('description');
     const banner = interaction.options.getString('banner');
+    const color = interaction.options.getString('color') || '#f59f00';
+    const placeholder = interaction.options.getString('placeholder') || 'Select a role to toggle';
 
     const embed = new EmbedBuilder()
         .setTitle(title)
-        .setColor('#f59f00');
+        .setColor(color);
 
     if (description) {
         embed.setDescription(description);
@@ -138,18 +148,13 @@ async function handleCreate(interaction) {
 
     if (banner) {
         try {
-            embed.setImage(banner);s
+            embed.setImage(banner);
         } catch (error) {
             return interaction.editReply({
                 content: '❌ Invalid banner URL provided.'
             });
         }
     }
-
-    // embed.setFooter({
-    //     text: 'Select roles from the dropdown menu below',
-    //     iconURL: interaction.guild.iconURL({ dynamic: true })
-    // });
 
     // First, send the message without the menu
     const setupMessage = await channel.send({
@@ -163,6 +168,8 @@ async function handleCreate(interaction) {
         title,
         description,
         banner,
+        color,
+        placeholder,
         roles: [],
         type: 'menu_container',
         createdAt: new Date(),
@@ -254,7 +261,7 @@ async function handleAddRole(interaction) {
 
         const menu = new StringSelectMenuBuilder()
             .setCustomId(`reaction_role_select_${messageId}`)
-            .setPlaceholder('Select a role to toggle')
+            .setPlaceholder(updatedSetup.placeholder || 'Select a role to toggle')
             .setMinValues(1)
             .setMaxValues(1)
             .addOptions(options);
@@ -325,7 +332,7 @@ async function handleRemoveRole(interaction) {
 
             const menu = new StringSelectMenuBuilder()
                 .setCustomId(`reaction_role_select_${messageId}`)
-                .setPlaceholder('Select a role to toggle')
+                .setPlaceholder(updatedSetup.placeholder || 'Select a role to toggle')
                 .setMinValues(1)
                 .setMaxValues(1)
                 .addOptions(options);

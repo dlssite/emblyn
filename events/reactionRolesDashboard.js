@@ -1,4 +1,4 @@
-const { EmbedBuilder, ButtonBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { reactionRolesCollection } = require('../mongodb');
 
 module.exports = {
@@ -90,6 +90,14 @@ module.exports = {
                             new ButtonBuilder()
                                 .setCustomId(`rr_edit_banner_${messageId}`)
                                 .setLabel('Edit Banner')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId(`rr_edit_color_${messageId}`)
+                                .setLabel('Edit Color')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId(`rr_edit_placeholder_${messageId}`)
+                                .setLabel('Edit Placeholder')
                                 .setStyle(ButtonStyle.Secondary)
                         );
 
@@ -98,6 +106,152 @@ module.exports = {
                         components: [row],
                         ephemeral: true
                     });
+                }
+
+                // Handle edit buttons
+                if (interaction.customId.startsWith('rr_edit_title_')) {
+                    const messageId = interaction.customId.replace('rr_edit_title_', '');
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const modal = new ModalBuilder()
+                        .setCustomId(`rr_edit_title_modal_${messageId}`)
+                        .setTitle('Edit Title');
+
+                    const titleInput = new TextInputBuilder()
+                        .setCustomId('new_title')
+                        .setLabel('New Title')
+                        .setPlaceholder('Enter the new title')
+                        .setStyle(TextInputStyle.Short)
+                        .setValue(setup.title)
+                        .setRequired(true);
+
+                    const row = new ActionRowBuilder().addComponents(titleInput);
+                    modal.addComponents(row);
+
+                    return interaction.showModal(modal);
+                }
+
+                if (interaction.customId.startsWith('rr_edit_desc_')) {
+                    const messageId = interaction.customId.replace('rr_edit_desc_', '');
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const modal = new ModalBuilder()
+                        .setCustomId(`rr_edit_desc_modal_${messageId}`)
+                        .setTitle('Edit Description');
+
+                    const descInput = new TextInputBuilder()
+                        .setCustomId('new_desc')
+                        .setLabel('New Description')
+                        .setPlaceholder('Enter the new description (optional)')
+                        .setStyle(TextInputStyle.Paragraph)
+                        .setValue(setup.description || '')
+                        .setRequired(false);
+
+                    const row = new ActionRowBuilder().addComponents(descInput);
+                    modal.addComponents(row);
+
+                    return interaction.showModal(modal);
+                }
+
+                if (interaction.customId.startsWith('rr_edit_banner_')) {
+                    const messageId = interaction.customId.replace('rr_edit_banner_', '');
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const modal = new ModalBuilder()
+                        .setCustomId(`rr_edit_banner_modal_${messageId}`)
+                        .setTitle('Edit Banner');
+
+                    const bannerInput = new TextInputBuilder()
+                        .setCustomId('new_banner')
+                        .setLabel('New Banner URL')
+                        .setPlaceholder('Enter the new banner URL (optional)')
+                        .setStyle(TextInputStyle.Short)
+                        .setValue(setup.banner || '')
+                        .setRequired(false);
+
+                    const row = new ActionRowBuilder().addComponents(bannerInput);
+                    modal.addComponents(row);
+
+                    return interaction.showModal(modal);
+                }
+
+                if (interaction.customId.startsWith('rr_edit_color_')) {
+                    const messageId = interaction.customId.replace('rr_edit_color_', '');
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const modal = new ModalBuilder()
+                        .setCustomId(`rr_edit_color_modal_${messageId}`)
+                        .setTitle('Edit Color');
+
+                    const colorInput = new TextInputBuilder()
+                        .setCustomId('new_color')
+                        .setLabel('New Color (Hex Code)')
+                        .setPlaceholder('Enter hex color code (e.g., #ff0000)')
+                        .setStyle(TextInputStyle.Short)
+                        .setValue(setup.color || '#f59f00')
+                        .setRequired(true);
+
+                    const row = new ActionRowBuilder().addComponents(colorInput);
+                    modal.addComponents(row);
+
+                    return interaction.showModal(modal);
+                }
+
+                if (interaction.customId.startsWith('rr_edit_placeholder_')) {
+                    const messageId = interaction.customId.replace('rr_edit_placeholder_', '');
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const modal = new ModalBuilder()
+                        .setCustomId(`rr_edit_placeholder_modal_${messageId}`)
+                        .setTitle('Edit Placeholder');
+
+                    const placeholderInput = new TextInputBuilder()
+                        .setCustomId('new_placeholder')
+                        .setLabel('New Placeholder Text')
+                        .setPlaceholder('Enter the new placeholder text')
+                        .setStyle(TextInputStyle.Short)
+                        .setValue(setup.placeholder || 'Select a role to toggle')
+                        .setRequired(true);
+
+                    const row = new ActionRowBuilder().addComponents(placeholderInput);
+                    modal.addComponents(row);
+
+                    return interaction.showModal(modal);
                 }
             }
 
@@ -168,7 +322,160 @@ module.exports = {
                     });
                 }
 
-                // Similar handlers for description and banner edits...
+                if (interaction.customId.startsWith('rr_edit_desc_modal_')) {
+                    const messageId = interaction.customId.replace('rr_edit_desc_modal_', '');
+                    const newDesc = interaction.fields.getTextInputValue('new_desc');
+
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const channel = await interaction.guild.channels.fetch(setup.channelId);
+                    const message = await channel.messages.fetch(messageId);
+
+                    const embed = EmbedBuilder.from(message.embeds[0])
+                        .setDescription(newDesc || null);
+
+                    await message.edit({ embeds: [embed] });
+                    await reactionRolesCollection.updateOne(
+                        { messageId },
+                        { $set: { description: newDesc || null } }
+                    );
+
+                    return interaction.reply({
+                        content: '✅ Description updated successfully!',
+                        ephemeral: true
+                    });
+                }
+
+                if (interaction.customId.startsWith('rr_edit_banner_modal_')) {
+                    const messageId = interaction.customId.replace('rr_edit_banner_modal_', '');
+                    const newBanner = interaction.fields.getTextInputValue('new_banner');
+
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const channel = await interaction.guild.channels.fetch(setup.channelId);
+                    const message = await channel.messages.fetch(messageId);
+
+                    const embed = EmbedBuilder.from(message.embeds[0]);
+                    if (newBanner) {
+                        try {
+                            embed.setImage(newBanner);
+                        } catch (error) {
+                            return interaction.reply({
+                                content: '❌ Invalid banner URL provided.',
+                                ephemeral: true
+                            });
+                        }
+                    } else {
+                        embed.setImage(null);
+                    }
+
+                    await message.edit({ embeds: [embed] });
+                    await reactionRolesCollection.updateOne(
+                        { messageId },
+                        { $set: { banner: newBanner || null } }
+                    );
+
+                    return interaction.reply({
+                        content: '✅ Banner updated successfully!',
+                        ephemeral: true
+                    });
+                }
+
+                if (interaction.customId.startsWith('rr_edit_color_modal_')) {
+                    const messageId = interaction.customId.replace('rr_edit_color_modal_', '');
+                    const newColor = interaction.fields.getTextInputValue('new_color');
+
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    const channel = await interaction.guild.channels.fetch(setup.channelId);
+                    const message = await channel.messages.fetch(messageId);
+
+                    const embed = EmbedBuilder.from(message.embeds[0])
+                        .setColor(newColor);
+
+                    await message.edit({ embeds: [embed] });
+                    await reactionRolesCollection.updateOne(
+                        { messageId },
+                        { $set: { color: newColor } }
+                    );
+
+                    return interaction.reply({
+                        content: '✅ Color updated successfully!',
+                        ephemeral: true
+                    });
+                }
+
+                if (interaction.customId.startsWith('rr_edit_placeholder_modal_')) {
+                    const messageId = interaction.customId.replace('rr_edit_placeholder_modal_', '');
+                    const newPlaceholder = interaction.fields.getTextInputValue('new_placeholder');
+
+                    const setup = await reactionRolesCollection.findOne({ messageId });
+                    if (!setup) {
+                        return interaction.reply({
+                            content: '❌ Reaction role setup not found.',
+                            ephemeral: true
+                        });
+                    }
+
+                    await reactionRolesCollection.updateOne(
+                        { messageId },
+                        { $set: { placeholder: newPlaceholder } }
+                    );
+
+                    // Update the select menu if it exists
+                    const updatedSetup = await reactionRolesCollection.findOne({ messageId });
+                    if (updatedSetup.roles.length > 0) {
+                        const channel = await interaction.guild.channels.fetch(updatedSetup.channelId);
+                        const message = await channel.messages.fetch(messageId);
+
+                        if (message.components.length > 0) {
+                            const options = updatedSetup.roles.map(r => {
+                                const option = {
+                                    label: r.label,
+                                    value: r.id,
+                                    description: `Toggle the ${r.name} role`
+                                };
+                                if (r.emoji && r.emoji.trim() !== '') {
+                                    option.emoji = r.emoji;
+                                }
+                                return option;
+                            });
+
+                            const menu = new StringSelectMenuBuilder()
+                                .setCustomId(`reaction_role_select_${messageId}`)
+                                .setPlaceholder(newPlaceholder)
+                                .setMinValues(1)
+                                .setMaxValues(1)
+                                .addOptions(options);
+
+                            const row = new ActionRowBuilder().addComponents(menu);
+                            await message.edit({ components: [row] });
+                        }
+                    }
+
+                    return interaction.reply({
+                        content: '✅ Placeholder updated successfully!',
+                        ephemeral: true
+                    });
+                }
             }
 
         } catch (error) {

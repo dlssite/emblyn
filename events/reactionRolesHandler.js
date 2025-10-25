@@ -155,19 +155,28 @@ module.exports = {
           return;
         }
 
-        // List (edit) and delete flows - present buttons to choose a setup
+        // List (edit) and delete flows - present dropdown menu to choose a setup
         if (id === 'reaction_role_list' || id === 'reaction_role_delete_list') {
-          const setups = await reactionRolesCollection.find({ serverId: interaction.guild.id, channelId: interaction.channel.id }).toArray();
-          if (!setups || setups.length === 0) return interaction.editReply({ content: '❌ No reaction role setups found in this channel.' });
+          const setups = await reactionRolesCollection.find({ serverId: interaction.guild.id }).toArray();
+          if (!setups || setups.length === 0) return interaction.editReply({ content: '❌ No reaction role setups found in this server.' });
 
-          const rows = setups.slice(0, 5).map(s => new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId((id === 'reaction_role_list' ? `reaction_role_edit_${s.messageId}` : `reaction_role_delete_${s.messageId}`))
-              .setLabel(s.title || (id === 'reaction_role_list' ? 'Edit Setup' : 'Delete Setup'))
-              .setStyle(id === 'reaction_role_list' ? ButtonStyle.Secondary : ButtonStyle.Danger)
-          ));
+          const options = setups.map(setup => ({
+            label: setup.title || 'Untitled Setup',
+            value: (id === 'reaction_role_list' ? `edit_${setup.messageId}` : `delete_${setup.messageId}`),
+            description: `Message ID: ${setup.messageId}`
+          }));
 
-          return interaction.editReply({ content: id === 'reaction_role_list' ? '📝 Select a reaction role setup to edit:' : '⚠️ Select a reaction role setup to delete:', components: rows });
+          const menu = new StringSelectMenuBuilder()
+            .setCustomId('reaction_role_manage_select')
+            .setPlaceholder(id === 'reaction_role_list' ? 'Select a setup to edit' : 'Select a setup to delete')
+            .addOptions(options);
+
+          const row = new ActionRowBuilder().addComponents(menu);
+
+          return interaction.editReply({
+            content: id === 'reaction_role_list' ? '📝 Select a reaction role setup to edit:' : '⚠️ Select a reaction role setup to delete:',
+            components: [row]
+          });
         }
 
         // Specific setup actions
@@ -478,26 +487,101 @@ module.exports = {
       }
 
       // SELECT MENUS
-      if (interaction.isStringSelectMenu() && interaction.customId.startsWith('reaction_role_select_')) {
-        // Always defer first for role toggles since they involve API calls
-        await interaction.deferReply({ ephemeral: true }).catch(() => {});
-        const roleId = interaction.values[0];
-        const member = interaction.member;
+      if (interaction.isStringSelectMenu()) {
+        if (interaction.customId === 'reaction_role_manage_select') {
+          // Handle manage select menu (edit/delete selection)
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+          const value = interaction.values[0];
+          const [action, messageId] = value.split('_');
 
-        try {
-          const role = await interaction.guild.roles.fetch(roleId).catch(() => null);
-          if (!role) return interaction.editReply({ content: '❌ This role no longer exists.' });
+          if (action === 'edit') {
+            const setup = await reactionRolesCollection.findOne({ messageId });
 
-          if (member.roles.cache.has(roleId)) {
-            await member.roles.remove(roleId).catch(() => {});
-            return interaction.editReply({ content: `✅ Removed the ${role.name} role.` });
-          } else {
-            await member.roles.add(roleId).catch(() => {});
-            return interaction.editReply({ content: `✅ Added the ${role.name} role.` });
+            if (!setup) {
+              return interaction.editReply({
+                content: '❌ Reaction role setup not found.',
+                ephemeral: true
+              });
+            }
+
+            const row = new ActionRowBuilder()
+              .addComponents(
+                new ButtonBuilder()
+                  .setCustomId(`reaction_role_edit_title_${messageId}`)
+                  .setLabel('Edit Title')
+                  .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                  .setCustomId(`reaction_role_toggle_desc_${messageId}`)
+                  .setLabel('Toggle Description')
+                  .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                  .setCustomId(`reaction_role_edit_banner_${messageId}`)
+                  .setLabel('Edit Banner')
+                  .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                  .setCustomId(`reaction_role_edit_color_${messageId}`)
+                  .setLabel('Edit Color')
+                  .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                  .setCustomId(`reaction_role_edit_placeholder_${messageId}`)
+                  .setLabel('Edit Placeholder')
+                  .setStyle(ButtonStyle.Secondary)
+              );
+
+            return interaction.editReply({
+              content: 'Choose what you want to edit:',
+              components: [row],
+              ephemeral: true
+            });
+          } else if (action === 'delete') {
+            const setup = await reactionRolesCollection.findOne({ messageId });
+
+            if (!setup) {
+              return interaction.editReply({
+                content: '❌ Reaction role setup not found.',
+                ephemeral: true
+              });
+            }
+
+            const row = new ActionRowBuilder()
+              .addComponents(
+                new ButtonBuilder()
+                  .setCustomId(`reaction_role_delete_confirm_${messageId}`)
+                  .setLabel('Confirm Delete')
+                  .setStyle(ButtonStyle.Danger),
+                new ButtonBuilder()
+                  .setCustomId(`reaction_role_delete_cancel_${messageId}`)
+                  .setLabel('Cancel')
+                  .setStyle(ButtonStyle.Secondary)
+              );
+
+            return interaction.editReply({
+              content: `Are you sure you want to delete the "${setup.title}" reaction role setup? This action cannot be undone.`,
+              components: [row],
+              ephemeral: true
+            });
           }
-        } catch (err) {
-          console.error('Error toggling role:', err);
-          return interaction.editReply({ content: '❌ An error occurred while toggling the role.' });
+        } else if (interaction.customId.startsWith('reaction_role_select_')) {
+          // Always defer first for role toggles since they involve API calls
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+          const roleId = interaction.values[0];
+          const member = interaction.member;
+
+          try {
+            const role = await interaction.guild.roles.fetch(roleId).catch(() => null);
+            if (!role) return interaction.editReply({ content: '❌ This role no longer exists.' });
+
+            if (member.roles.cache.has(roleId)) {
+              await member.roles.remove(roleId).catch(() => {});
+              return interaction.editReply({ content: `✅ Removed the ${role.name} role.` });
+            } else {
+              await member.roles.add(roleId).catch(() => {});
+              return interaction.editReply({ content: `✅ Added the ${role.name} role.` });
+            }
+          } catch (err) {
+            console.error('Error toggling role:', err);
+            return interaction.editReply({ content: '❌ An error occurred while toggling the role.' });
+          }
         }
       }
 

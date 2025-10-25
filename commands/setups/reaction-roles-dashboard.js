@@ -115,7 +115,7 @@ async function showDashboard(interaction) {
                 .setEmoji('👁️')
         );
 
-    await interaction.reply({
+    await interaction.editReply({
         embeds: [embed],
         components: [row],
         ephemeral: true
@@ -137,9 +137,8 @@ async function handleCreate(interaction) {
         try {
             embed.setImage(banner);
         } catch (error) {
-            return interaction.reply({
-                content: '❌ Invalid banner URL provided.',
-                ephemeral: true
+            return interaction.editReply({
+                content: '❌ Invalid banner URL provided.'
             });
         }
     }
@@ -191,14 +190,15 @@ async function handleCreate(interaction) {
         .setDescription(`Your reaction role message has been created in ${channel}!\n\n**Next Steps:**\n1. Click "Add Role" to start adding roles\n2. Use "Edit Message" to modify the appearance\n3. Preview your changes in ${channel}`)
         .setColor('#00ff00');
 
-    return interaction.reply({
+    return interaction.editReply({
         embeds: [successEmbed],
-        components: [configRow],
-        ephemeral: true
+        components: [configRow]
     });
 }
 
 async function handleAddRole(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+    
     const messageId = interaction.options.getString('messageid');
     const role = interaction.options.getRole('role');
     const label = interaction.options.getString('label');
@@ -207,17 +207,15 @@ async function handleAddRole(interaction) {
     // Find the reaction role setup
     const setup = await reactionRolesCollection.findOne({ messageId });
     if (!setup) {
-        return interaction.reply({
-            content: '❌ Could not find the reaction role message. Make sure you have the correct message ID.',
-            ephemeral: true
+        return interaction.editReply({
+            content: '❌ Could not find the reaction role message. Make sure you have the correct message ID.'
         });
     }
 
     // Check if role is already in the menu
     if (setup.roles.some(r => r.id === role.id)) {
-        return interaction.reply({
-            content: '❌ This role is already in the reaction role menu.',
-            ephemeral: true
+        return interaction.editReply({
+            content: '❌ This role is already in the reaction role menu.'
         });
     }
 
@@ -241,12 +239,17 @@ async function handleAddRole(interaction) {
 
         // Update the select menu
         const updatedSetup = await reactionRolesCollection.findOne({ messageId });
-        const options = updatedSetup.roles.map(r => ({
-            label: r.label,
-            value: r.id,
-            description: `Toggle the ${r.name} role`,
-            emoji: r.emoji
-        }));
+        const options = updatedSetup.roles.map(r => {
+            const option = {
+                label: r.label,
+                value: r.id,
+                description: `Toggle the ${r.name} role`
+            };
+            if (r.emoji && r.emoji.trim() !== '') {
+                option.emoji = r.emoji;
+            }
+            return option;
+        });
 
         const menu = new StringSelectMenuBuilder()
             .setCustomId(`reaction_role_select_${messageId}`)
@@ -258,37 +261,35 @@ async function handleAddRole(interaction) {
         const row = new ActionRowBuilder().addComponents(menu);
         await message.edit({ components: [row] });
 
-        return interaction.reply({
-            content: `✅ Added role ${role.name} to the reaction role menu.`,
-            ephemeral: true
+        return interaction.editReply({
+            content: `✅ Added role ${role.name} to the reaction role menu.`
         });
     } catch (error) {
         console.error('Error adding role:', error);
-        return interaction.reply({
-            content: '❌ An error occurred while adding the role.',
-            ephemeral: true
+        return interaction.editReply({
+            content: '❌ An error occurred while adding the role.'
         });
     }
 }
 
 async function handleRemoveRole(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+    
     const messageId = interaction.options.getString('messageid');
     const role = interaction.options.getRole('role');
 
     // Find the reaction role setup
     const setup = await reactionRolesCollection.findOne({ messageId });
     if (!setup) {
-        return interaction.reply({
-            content: '❌ Could not find the reaction role message. Make sure you have the correct message ID.',
-            ephemeral: true
+        return interaction.editReply({
+            content: '❌ Could not find the reaction role message. Make sure you have the correct message ID.'
         });
     }
 
     // Check if role exists in the menu
     if (!setup.roles.some(r => r.id === role.id)) {
-        return interaction.reply({
-            content: '❌ This role is not in the reaction role menu.',
-            ephemeral: true
+        return interaction.editReply({
+            content: '❌ This role is not in the reaction role menu.'
         });
     }
 
@@ -311,12 +312,17 @@ async function handleRemoveRole(interaction) {
             await message.edit({ components: [] });
         } else {
             // Update menu with remaining roles
-            const options = updatedSetup.roles.map(r => ({
-                label: r.label,
-                value: r.id,
-                description: `Toggle the ${r.name} role`,
-                emoji: r.emoji
-            }));
+            const options = updatedSetup.roles.map(r => {
+                const option = {
+                    label: r.label,
+                    value: r.id,
+                    description: `Toggle the ${r.name} role`
+                };
+                if (r.emoji && r.emoji.trim() !== '') {
+                    option.emoji = r.emoji;
+                }
+                return option;
+            });
 
             const menu = new StringSelectMenuBuilder()
                 .setCustomId(`reaction_role_select_${messageId}`)
@@ -329,15 +335,13 @@ async function handleRemoveRole(interaction) {
             await message.edit({ components: [row] });
         }
 
-        return interaction.reply({
-            content: `✅ Removed role ${role.name} from the reaction role menu.`,
-            ephemeral: true
+        return interaction.editReply({
+            content: `✅ Removed role ${role.name} from the reaction role menu.`
         });
     } catch (error) {
         console.error('Error removing role:', error);
-        return interaction.reply({
-            content: '❌ An error occurred while removing the role.',
-            ephemeral: true
+        return interaction.editReply({
+            content: '❌ An error occurred while removing the role.'
         });
     }
 }

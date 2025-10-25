@@ -1358,6 +1358,14 @@ module.exports = {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
 
+            // Defer the reply early for all slash commands to prevent timeouts
+            try {
+                await interaction.deferReply({ ephemeral: true });
+            } catch (err) {
+                // Ignore if already deferred/replied
+                console.debug('Error deferring slash command:', err.message);
+            }
+
             const subcommandName = interaction.options.getSubcommand(false);
             const isDisabled = await DisabledCommand.findOne({
                 guildId: interaction.guild.id,
@@ -1366,7 +1374,7 @@ module.exports = {
             });
 
             if (isDisabled) {
-                return interaction.reply({ content: `❌ This command is disabled in this server.`, flags: [MessageFlags.Ephemeral] });
+                return interaction.editReply({ content: `❌ This command is disabled in this server.` });
             }
 
             try {

@@ -26,6 +26,15 @@ module.exports = {
       if (interaction.isButton()) {
         const id = interaction.customId;
 
+        // Defer early for all button interactions unless they show a modal
+        if (!interaction.deferred && !interaction.replied && 
+            !id.startsWith('reaction_role_add_') && 
+            !id.startsWith('reaction_role_add_role_') &&
+            !id.startsWith('reaction_role_edit_title_') && 
+            !id.startsWith('reaction_role_edit_desc_')) {
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+        }
+
         // Buttons that open modals MUST call showModal immediately and MUST NOT be deferred first.
         if (id.startsWith('reaction_role_add_') || id.startsWith('reaction_role_add_role_')) {
           const messageId = id.split('_').pop();
@@ -124,8 +133,17 @@ module.exports = {
           return interaction.editReply({ content: 'Choose what you want to edit:', components: [row] });
         }
 
-        if (id.startsWith('reaction_role_delete_')) {
+        // Initial delete button (not confirm/cancel)
+        if (id.startsWith('reaction_role_delete_') && 
+            !id.startsWith('reaction_role_delete_confirm_') && 
+            !id.startsWith('reaction_role_delete_cancel_') &&
+            !id.startsWith('reaction_role_delete_list')) {
           const messageId = id.replace('reaction_role_delete_', '');
+          
+          // Verify the setup exists before showing confirm dialog
+          const setup = await reactionRolesCollection.findOne({ messageId });
+          if (!setup) return interaction.editReply({ content: '❌ Could not find the reaction role setup.' });
+          
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`reaction_role_delete_confirm_${messageId}`).setLabel('Confirm Delete').setStyle(ButtonStyle.Danger),
             new ButtonBuilder().setCustomId(`reaction_role_delete_cancel_${messageId}`).setLabel('Cancel').setStyle(ButtonStyle.Secondary)
@@ -140,17 +158,40 @@ module.exports = {
           if (!setup) return interaction.editReply({ content: '❌ Could not find the reaction role setup.' });
 
           try {
-            const channel = await interaction.guild.channels.fetch(setup.channelId).catch(() => null);
-            if (channel) {
-              const msg = await channel.messages.fetch(messageId).catch(() => null);
-              if (msg) await msg.delete().catch(() => {});
+            // Try to delete the message if it exists
+            try {
+              const channel = await interaction.guild.channels.fetch(setup.channelId);
+              if (channel) {
+                const msg = await channel.messages.fetch(messageId);
+                if (msg) await msg.delete();
+              }
+            } catch (messageError) {
+              // Message might already be deleted or inaccessible, continue with database cleanup
+              console.log('Message not found or already deleted:', messageError.message);
             }
-          } catch (e) {
-            // ignore
-          }
 
-          await reactionRolesCollection.deleteOne({ messageId }).catch(() => {});
-          return interaction.editReply({ content: '✅ Reaction role setup has been deleted.', components: [] });
+            // Always delete from database
+            await reactionRolesCollection.deleteOne({ messageId });
+            
+            return interaction.editReply({ 
+              content: '✅ Reaction role setup has been deleted.',
+              components: [] 
+            });
+          } catch (error) {
+            console.error('Error deleting reaction role setup:', error);
+            if (error.code === 10008) { // Unknown Message
+              // Message is already gone, just clean up the database
+              await reactionRolesCollection.deleteOne({ messageId });
+              return interaction.editReply({ 
+                content: '✅ Reaction role setup has been deleted from the database.',
+                components: [] 
+              });
+            }
+            return interaction.editReply({ 
+              content: '❌ Failed to delete the reaction role setup completely. Please try again or contact an administrator.',
+              components: [] 
+            });
+          }
         }
 
         if (id.startsWith('reaction_role_delete_cancel_')) {
@@ -280,7 +321,8 @@ module.exports = {
 
       // SELECT MENUS
       if (interaction.isStringSelectMenu() && interaction.customId.startsWith('reaction_role_select_')) {
-        if (!interaction.deferred && !interaction.replied) await interaction.deferReply({ ephemeral: true }).catch(() => {});
+        // Always defer first for role toggles since they involve API calls
+        await interaction.deferReply({ ephemeral: true }).catch(() => {});
         const roleId = interaction.values[0];
         const member = interaction.member;
 

@@ -59,7 +59,7 @@ const aiChatSchema = new mongoose.Schema({
   model: {
     type: String,
     required: false,
-    default: 'openai/gpt-4o'
+    default: 'google/gemini-2.0-flash-exp:free'
   }
 });
 

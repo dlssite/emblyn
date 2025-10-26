@@ -68,8 +68,6 @@ module.exports = {
                 const status = interaction.options.getString('status');
                 const isEnabled = status === 'on';
 
-                await interaction.deferReply({ ephemeral: true });
-
                 try {
                     const existingConfig = await AiChat.getConfig(guildId);
                     await AiChat.setConfig(guildId, channel.id, isEnabled, interaction.user.id);
@@ -93,8 +91,6 @@ module.exports = {
                     });
                 }
             } else if (subcommand === 'view') {
-                await interaction.deferReply({ ephemeral: true });
-
                 try {
                     // Use model method to get config
                     const config = await AiChat.getConfig(guildId);
@@ -121,8 +117,6 @@ module.exports = {
                     });
                 }
             } else if (subcommand === 'disable') {
-                await interaction.deferReply({ ephemeral: true });
-
                 try {
                     const config = await AiChat.getConfig(guildId);
 
@@ -203,9 +197,7 @@ module.exports = {
                 }
             } else if (subcommand === 'set-apikey') {
                 const apiKey = interaction.options.getString('apikey');
-                const model = interaction.options.getString('model') || 'openai/gpt-4o';
-
-                await interaction.deferReply({ ephemeral: true });
+                const model = interaction.options.getString('model') || 'google/gemini-2.0-flash-exp:free';
 
                 try {
                     // Test the API key with the provided model

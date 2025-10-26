@@ -13,6 +13,7 @@ const nsfwDares = require('../data/truthordare/nsfw_dare.json');
 const DisabledCommand = require('../models/commands/DisabledCommands');
 const PartnerConfig = require('../models/partnership/partnerConfig');
 const EventConfig = require('../models/events/eventConfig');
+const Event = require('../models/pets/events');
 const AiChat = require('../models/aichat/aiModel');
 const embersMessages = new Map();
 
